@@ -73,8 +73,8 @@ export default function RoomPage() {
     if (!room || !me) return
     if (room.status === 'lobby') setStep('join')
     if (room.status === 'adding') {
-      const hasSong = songs.some(s => s.player_id === me.id)
-      setStep(hasSong ? 'waiting' : 'adding')
+      const myCount = songs.filter(s => s.player_id === me.id).length
+      setStep(myCount >= (room.songs_per_player ?? 1) ? 'waiting' : 'adding')
     }
     if (room.status === 'playing') {
       // Re-fetch songs sorted by position — the host may have shuffled them after players loaded
@@ -134,7 +134,11 @@ export default function RoomPage() {
       }),
     })
     setMySong({ ...selectedTrack, player_id: me.id } as unknown as Song)
-    setStep('waiting')
+    setSelectedTrack(null)
+    setQuery('')
+    setSearchResults([])
+    const newCount = songs.filter(s => s.player_id === me.id).length + 1
+    setStep(newCount >= (room.songs_per_player ?? 1) ? 'waiting' : 'adding')
     setSubmitting(false)
   }
 
@@ -200,8 +204,13 @@ export default function RoomPage() {
 
       {step === 'adding' && (
         <div className="flex flex-col gap-4">
-          <h2 className="text-xl font-semibold">Pick your song</h2>
-          <p className="text-gray-400 text-sm">Search for the song you want to add. Others will have to guess it&apos;s yours!</p>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Pick your songs</h2>
+            <span className="text-green-400 font-semibold">
+              {me ? songs.filter(s => s.player_id === me.id).length : 0}/{room.songs_per_player ?? 1}
+            </span>
+          </div>
+          <p className="text-gray-400 text-sm">Search for songs to add. Others will have to guess they&apos;re yours!</p>
           <input
             type="text"
             placeholder="Search Spotify..."

@@ -5,6 +5,7 @@ export interface Room {
   code: string
   status: RoomStatus
   current_song_index: number
+  songs_per_player: number
   created_at: string
 }
 
