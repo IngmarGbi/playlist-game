@@ -55,7 +55,7 @@ export default function RoomPage() {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'players', filter: `room_id=eq.${room.id}` },
         ({ new: p }) => setPlayers(prev => [...prev, p as Player]))
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'players', filter: `room_id=eq.${room.id}` },
-        ({ new: p }) => setPlayers(prev => prev.map(pl => pl.id === (p as Player).id ? p as Player : pl)))
+        () => fetch(`/api/players?room_id=${room.id}`).then(r => r.json()).then(data => setPlayers(data)))
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'songs', filter: `room_id=eq.${room.id}` },
         ({ new: s }) => setSongs(prev => [...prev, s as Song]))
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'votes', filter: `room_id=eq.${room.id}` },
