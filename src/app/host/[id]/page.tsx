@@ -257,6 +257,7 @@ export default function HostPage() {
       body: JSON.stringify({ done: true }),
     })
     setMe(prev => prev ? { ...prev, done: true } : prev)
+    setPlayers(prev => prev.map(p => p.id === me.id ? { ...p, done: true } : p))
   }
 
   async function startPlaying() {
