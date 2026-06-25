@@ -36,8 +36,15 @@ export default function HostPage() {
   // Spotify
   const [spotifyConnected, setSpotifyConnected] = useState<boolean | null>(null)
   const [spotifyUser, setSpotifyUser] = useState<string | null>(null)
+  const [deviceId, setDeviceId] = useState<string | null>(null)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [position, setPosition] = useState(0)
+  const [duration, setDuration] = useState(0)
 
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const playerRef = useRef<any>(null)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     fetch('/api/spotify/token').then(r => r.json()).then(data => {
@@ -45,6 +52,72 @@ export default function HostPage() {
       if (data.connected) setSpotifyUser(data.display_name)
     })
   }, [])
+
+  // Load Spotify Web Playback SDK when connected
+  useEffect(() => {
+    if (!spotifyConnected) return
+
+    function initPlayer() {
+      fetch('/api/spotify/token').then(r => r.json()).then(({ access_token }) => {
+        if (!access_token) return
+
+        const player = new window.Spotify.Player({
+          name: 'Playlist Game',
+          getOAuthToken: cb => {
+            fetch('/api/spotify/token').then(r => r.json()).then(d => cb(d.access_token))
+          },
+          volume: 0.8,
+        })
+
+        player.addListener('ready', ({ device_id }) => setDeviceId(device_id))
+        player.addListener('player_state_changed', state => {
+          if (!state) return
+          setIsPlaying(!state.paused)
+          setPosition(state.position)
+          setDuration(state.duration)
+        })
+
+        player.connect()
+        playerRef.current = player
+      })
+    }
+
+    if (window.Spotify) {
+      initPlayer()
+    } else {
+      window.onSpotifyWebPlaybackSDKReady = initPlayer
+      const script = document.createElement('script')
+      script.src = 'https://sdk.scdn.co/spotify-player.js'
+      script.async = true
+      document.body.appendChild(script)
+    }
+
+    return () => { playerRef.current?.disconnect() }
+  }, [spotifyConnected])
+
+  // Auto-play when song changes
+  useEffect(() => {
+    const song = songs[currentSongIndex]
+    if (!deviceId || !song || room?.status !== 'playing') return
+    async function play() {
+      const { access_token } = await fetch('/api/spotify/token').then(r => r.json())
+      await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uris: [`spotify:track:${song.spotify_track_id}`] }),
+      })
+    }
+    play()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSongIndex, deviceId, room?.status])
+
+  // Progress bar ticker
+  useEffect(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current)
+    if (!isPlaying) return
+    intervalRef.current = setInterval(() => setPosition(p => p + 1000), 1000)
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+  }, [isPlaying])
 
   useEffect(() => {
     if (!id) return
@@ -431,11 +504,38 @@ export default function HostPage() {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={currentSong.cover_url} alt="cover" className="w-20 h-20 rounded-xl object-cover" />
             )}
-            <div>
-              <div className="font-bold text-xl">{currentSong.title}</div>
-              <div className="text-gray-400">{currentSong.artist}</div>
+            <div className="flex-1 min-w-0">
+              <div className="font-bold text-xl truncate">{currentSong.title}</div>
+              <div className="text-gray-400 truncate">{currentSong.artist}</div>
             </div>
           </div>
+
+          {/* Playback controls */}
+          {deviceId && (
+            <div className="bg-gray-800 rounded-2xl p-4 flex flex-col gap-3">
+              <div className="w-full bg-gray-700 rounded-full h-2">
+                <div
+                  className="bg-green-400 h-2 rounded-full transition-all"
+                  style={{ width: duration > 0 ? `${Math.min((position / duration) * 100, 100)}%` : '0%' }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-xs text-gray-400">
+                <span>{Math.floor(position / 60000)}:{String(Math.floor((position % 60000) / 1000)).padStart(2, '0')}</span>
+                <button
+                  onClick={() => playerRef.current?.togglePlay()}
+                  className="bg-green-500 hover:bg-green-400 text-black font-bold px-6 py-2 rounded-full text-sm"
+                >
+                  {isPlaying ? '⏸ Pause' : '▶ Play'}
+                </button>
+                <span>{Math.floor(duration / 60000)}:{String(Math.floor((duration % 60000) / 1000)).padStart(2, '0')}</span>
+              </div>
+            </div>
+          )}
+          {spotifyConnected && !deviceId && (
+            <div className="bg-gray-800 rounded-2xl px-4 py-3 text-center text-gray-400 text-sm">
+              Connecting to Spotify player...
+            </div>
+          )}
 
           {/* Voting / your song */}
           {!isMyCurrentSong ? (
