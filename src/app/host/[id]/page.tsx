@@ -144,6 +144,8 @@ export default function HostPage() {
           const filtered = prev.filter(x => !(x.song_id === (v as Vote).song_id && x.voter_id === (v as Vote).voter_id))
           return [...filtered, v as Vote]
         }))
+      .on('broadcast', { event: 'player_done' }, () =>
+        fetch(`/api/players?room_id=${id}`).then(r => r.json()).then(data => setPlayers(data)))
       .subscribe()
 
     return () => { supabase.removeChannel(roomSub) }
@@ -258,6 +260,7 @@ export default function HostPage() {
     })
     setMe(prev => prev ? { ...prev, done: true } : prev)
     setPlayers(prev => prev.map(p => p.id === me.id ? { ...p, done: true } : p))
+    supabase.channel(`player-room-${id}`).send({ type: 'broadcast', event: 'player_done', payload: {} })
   }
 
   async function deleteSong(songId: string) {

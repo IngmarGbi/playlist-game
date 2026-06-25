@@ -64,6 +64,8 @@ export default function RoomPage() {
           return [...f, v as { voter_id: string; voted_for_player_id: string }]
         }))
       .on('broadcast', { event: 'reveal' }, () => setRevealed(true))
+      .on('broadcast', { event: 'player_done' }, () =>
+        fetch(`/api/players?room_id=${room.id}`).then(r => r.json()).then(data => setPlayers(data)))
       .subscribe()
 
     return () => { supabase.removeChannel(sub) }
@@ -150,6 +152,7 @@ export default function RoomPage() {
     })
     setMe(prev => prev ? { ...prev, done: true } : prev)
     setPlayers(prev => prev.map(p => p.id === me.id ? { ...p, done: true } : p))
+    supabase.channel(`player-room-${room?.id}`).send({ type: 'broadcast', event: 'player_done', payload: {} })
     setStep('waiting')
   }
 
