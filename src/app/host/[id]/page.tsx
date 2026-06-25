@@ -42,6 +42,7 @@ export default function HostPage() {
   const [duration, setDuration] = useState(0)
 
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const playerRef = useRef<any>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -130,7 +131,9 @@ export default function HostPage() {
       if (data) setPlayers(data)
     })
 
-    const roomSub = supabase.channel(`room-${id}`)
+    const roomSub = supabase.channel(`player-room-${id}`)
+    channelRef.current = roomSub
+    roomSub
       .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: `id=eq.${id}` },
         ({ new: r }) => { setRoom(r as Room); setCurrentSongIndex((r as Room).current_song_index) })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'players', filter: `room_id=eq.${id}` },
@@ -181,11 +184,7 @@ export default function HostPage() {
   }, [id])
 
   async function broadcastReveal() {
-    await supabase.channel(`player-room-${id}`).send({
-      type: 'broadcast',
-      event: 'reveal',
-      payload: {},
-    })
+    await channelRef.current?.send({ type: 'broadcast', event: 'reveal', payload: {} })
   }
 
   async function joinAsPlayer() {
@@ -260,7 +259,7 @@ export default function HostPage() {
     })
     setMe(prev => prev ? { ...prev, done: true } : prev)
     setPlayers(prev => prev.map(p => p.id === me.id ? { ...p, done: true } : p))
-    supabase.channel(`player-room-${id}`).send({ type: 'broadcast', event: 'player_done', payload: {} })
+    channelRef.current?.send({ type: 'broadcast', event: 'player_done', payload: {} })
   }
 
   async function deleteSong(songId: string) {

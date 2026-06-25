@@ -31,6 +31,7 @@ export default function RoomPage() {
   const [revealed, setRevealed] = useState(false)
 
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
   useEffect(() => {
     if (!code) return
@@ -49,7 +50,9 @@ export default function RoomPage() {
       if (data) setSongs(data)
     })
 
-    const sub = supabase.channel(`player-room-${room.id}`)
+    const sub = supabase.channel(`player-room-${room.id}`, { config: { broadcast: { self: false } } })
+    channelRef.current = sub
+    sub
       .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: `id=eq.${room.id}` },
         ({ new: r }) => setRoom(r as Room))
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'players', filter: `room_id=eq.${room.id}` },
@@ -152,7 +155,7 @@ export default function RoomPage() {
     })
     setMe(prev => prev ? { ...prev, done: true } : prev)
     setPlayers(prev => prev.map(p => p.id === me.id ? { ...p, done: true } : p))
-    supabase.channel(`player-room-${room?.id}`).send({ type: 'broadcast', event: 'player_done', payload: {} })
+    channelRef.current?.send({ type: 'broadcast', event: 'player_done', payload: {} })
     setStep('waiting')
   }
 
