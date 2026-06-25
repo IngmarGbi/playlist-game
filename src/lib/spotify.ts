@@ -33,5 +33,6 @@ export async function searchTracks(query: string) {
     { headers: { Authorization: `Bearer ${token}` } }
   )
   const data = await res.json()
+  if (!res.ok) console.error('Spotify search error:', JSON.stringify(data))
   return data.tracks?.items ?? []
 }
