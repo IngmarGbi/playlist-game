@@ -257,7 +257,6 @@ export default function HostPage() {
       body: JSON.stringify({ done: true }),
     })
     setMe(prev => prev ? { ...prev, done: true } : prev)
-    setStep('playing')
   }
 
   async function startPlaying() {
