@@ -14,6 +14,7 @@ export interface Player {
   room_id: string
   name: string
   score: number
+  done: boolean
   created_at: string
 }
 

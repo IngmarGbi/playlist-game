@@ -32,7 +32,6 @@ export default function HostPage() {
   // UI
   const [step, setStep] = useState<HostStep>('name')
   const [nameInput, setNameInput] = useState('')
-  const [songsPerPlayer, setSongsPerPlayer] = useState(1)
 
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -40,11 +39,7 @@ export default function HostPage() {
     if (!id) return
 
     supabase.from('rooms').select('*').eq('id', id).single().then(({ data }) => {
-      if (data) {
-        setRoom(data)
-        setCurrentSongIndex(data.current_song_index)
-        setSongsPerPlayer(data.songs_per_player ?? 1)
-      }
+      if (data) { setRoom(data); setCurrentSongIndex(data.current_song_index) }
     })
 
     supabase.from('players').select('*').eq('room_id', id).order('created_at').then(({ data }) => {
@@ -53,12 +48,11 @@ export default function HostPage() {
 
     const roomSub = supabase.channel(`room-${id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: `id=eq.${id}` },
-        ({ new: r }) => {
-          setRoom(r as Room)
-          setCurrentSongIndex((r as Room).current_song_index)
-        })
+        ({ new: r }) => { setRoom(r as Room); setCurrentSongIndex((r as Room).current_song_index) })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'players', filter: `room_id=eq.${id}` },
         ({ new: p }) => setPlayers(prev => [...prev, p as Player]))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'players', filter: `room_id=eq.${id}` },
+        ({ new: p }) => setPlayers(prev => prev.map(pl => pl.id === (p as Player).id ? p as Player : pl)))
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'songs', filter: `room_id=eq.${id}` },
         ({ new: s }) => setSongs(prev => [...prev, s as Song]))
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'votes', filter: `room_id=eq.${id}` },
@@ -168,7 +162,18 @@ export default function HostPage() {
   }
 
   async function startAdding() {
-    await updateRoom({ status: 'adding', songs_per_player: songsPerPlayer })
+    await updateRoom({ status: 'adding' })
+  }
+
+  async function markDone() {
+    if (!me) return
+    await fetch(`/api/players/${me.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ done: true }),
+    })
+    setMe(prev => prev ? { ...prev, done: true } : prev)
+    setStep('playing')
   }
 
   async function startPlaying() {
@@ -197,14 +202,13 @@ export default function HostPage() {
     </main>
   )
 
-  const limit = room.songs_per_player ?? songsPerPlayer
   const mySongs = me ? songs.filter(s => s.player_id === me.id) : []
   const currentSong = songs[currentSongIndex]
   const currentVotes = votes.filter(v => v.song_id === currentSong?.id)
   const allVoted = currentSong
     ? players.filter(p => p.id !== currentSong.player_id).every(p => currentVotes.some(v => v.voter_id === p.id))
     : false
-  const everyoneAdded = players.every(p => songs.filter(s => s.player_id === p.id).length >= limit)
+  const everyoneReady = players.every(p => p.done && songs.some(s => s.player_id === p.id))
   const isMyCurrentSong = me && currentSong?.player_id === me.id
   const roomUrl = typeof window !== 'undefined' ? `${window.location.origin}/room/${room.code}` : ''
 
@@ -259,21 +263,6 @@ export default function HostPage() {
             }
           </div>
 
-          <div className="bg-gray-800 rounded-2xl p-4">
-            <h2 className="text-lg font-semibold mb-3">Songs per player</h2>
-            <div className="flex gap-2">
-              {[1, 2, 3].map(n => (
-                <button
-                  key={n}
-                  onClick={() => setSongsPerPlayer(n)}
-                  className={`flex-1 py-3 rounded-xl font-bold text-lg transition ${songsPerPlayer === n ? 'bg-green-500 text-black' : 'bg-gray-700 hover:bg-gray-600 text-white'}`}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
-          </div>
-
           <button
             onClick={startAdding}
             disabled={players.length < 2}
@@ -290,10 +279,10 @@ export default function HostPage() {
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Add your songs</h2>
-            <span className="text-green-400 font-semibold">{mySongs.length}/{limit} added</span>
+            <span className="text-green-400 font-semibold">{mySongs.length} added</span>
           </div>
 
-          {mySongs.length < limit && (
+          {!(me?.done) && (
             <>
               <input
                 type="text"
@@ -363,6 +352,15 @@ export default function HostPage() {
             </div>
           )}
 
+          {mySongs.length > 0 && !me?.done && (
+            <button
+              onClick={markDone}
+              className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl"
+            >
+              I&apos;m done adding songs
+            </button>
+          )}
+
           <div className="bg-gray-800 rounded-2xl p-4">
             <h3 className="font-semibold mb-2">Player progress</h3>
             {players.map(p => {
@@ -370,8 +368,8 @@ export default function HostPage() {
               return (
                 <div key={p.id} className="flex items-center justify-between py-1">
                   <span className="text-sm">{p.name}{me && p.id === me.id ? ' (you)' : ''}</span>
-                  <span className={count >= limit ? 'text-green-400 text-sm' : 'text-gray-500 text-sm'}>
-                    {count}/{limit}
+                  <span className={p.done ? 'text-green-400 text-sm' : 'text-gray-500 text-sm'}>
+                    {p.done ? `✓ Done (${count})` : `${count} added...`}
                   </span>
                 </div>
               )
@@ -380,14 +378,14 @@ export default function HostPage() {
 
           <button
             onClick={startPlaying}
-            disabled={!everyoneAdded}
+            disabled={!everyoneReady}
             className="w-full py-4 bg-green-500 hover:bg-green-400 text-black font-bold text-lg rounded-2xl disabled:opacity-40"
           >
             Everyone&apos;s ready — start playing!
           </button>
-          {!everyoneAdded && (
+          {!everyoneReady && (
             <p className="text-gray-400 text-sm text-center">
-              Waiting for all players to add their songs
+              Waiting for all players to finish adding songs
             </p>
           )}
         </div>

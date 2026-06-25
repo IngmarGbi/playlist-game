@@ -7,20 +7,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
 
-  // Check player hasn't exceeded songs_per_player limit
-  const [{ data: room }, { count: playerSongCount }, { count: totalCount }] = await Promise.all([
-    supabase.from('rooms').select('songs_per_player').eq('id', room_id).single(),
-    supabase.from('songs').select('*', { count: 'exact', head: true }).eq('room_id', room_id).eq('player_id', player_id),
-    supabase.from('songs').select('*', { count: 'exact', head: true }).eq('room_id', room_id),
-  ])
-
-  const limit = room?.songs_per_player ?? 1
-  if ((playerSongCount ?? 0) >= limit) {
-    return NextResponse.json({ error: 'Song limit reached' }, { status: 409 })
-  }
-
   // Get next position
-  const count = totalCount
+  const { count } = await supabase
+    .from('songs')
+    .select('*', { count: 'exact', head: true })
+    .eq('room_id', room_id)
 
   const { data, error } = await supabase
     .from('songs')

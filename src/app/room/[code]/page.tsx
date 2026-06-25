@@ -54,6 +54,8 @@ export default function RoomPage() {
         ({ new: r }) => setRoom(r as Room))
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'players', filter: `room_id=eq.${room.id}` },
         ({ new: p }) => setPlayers(prev => [...prev, p as Player]))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'players', filter: `room_id=eq.${room.id}` },
+        ({ new: p }) => setPlayers(prev => prev.map(pl => pl.id === (p as Player).id ? p as Player : pl)))
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'songs', filter: `room_id=eq.${room.id}` },
         ({ new: s }) => setSongs(prev => [...prev, s as Song]))
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'votes', filter: `room_id=eq.${room.id}` },
@@ -73,8 +75,7 @@ export default function RoomPage() {
     if (!room || !me) return
     if (room.status === 'lobby') setStep('join')
     if (room.status === 'adding') {
-      const myCount = songs.filter(s => s.player_id === me.id).length
-      setStep(myCount >= (room.songs_per_player ?? 1) ? 'waiting' : 'adding')
+      setStep(me.done ? 'waiting' : 'adding')
     }
     if (room.status === 'playing') {
       // Re-fetch songs sorted by position — the host may have shuffled them after players loaded
@@ -137,9 +138,18 @@ export default function RoomPage() {
     setSelectedTrack(null)
     setQuery('')
     setSearchResults([])
-    const newCount = songs.filter(s => s.player_id === me.id).length + 1
-    setStep(newCount >= (room.songs_per_player ?? 1) ? 'waiting' : 'adding')
     setSubmitting(false)
+  }
+
+  async function markDone() {
+    if (!me) return
+    await fetch(`/api/players/${me.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ done: true }),
+    })
+    setMe(prev => prev ? { ...prev, done: true } : prev)
+    setStep('waiting')
   }
 
   async function castVote(playerIdGuess: string) {
@@ -205,12 +215,12 @@ export default function RoomPage() {
       {step === 'adding' && (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Pick your songs</h2>
+            <h2 className="text-xl font-semibold">Add your songs</h2>
             <span className="text-green-400 font-semibold">
-              {me ? songs.filter(s => s.player_id === me.id).length : 0}/{room.songs_per_player ?? 1}
+              {me ? songs.filter(s => s.player_id === me.id).length : 0} added
             </span>
           </div>
-          <p className="text-gray-400 text-sm">Search for songs to add. Others will have to guess they&apos;re yours!</p>
+          <p className="text-gray-400 text-sm">Add as many songs as you want — tap &quot;I&apos;m done&quot; when ready!</p>
           <input
             type="text"
             placeholder="Search Spotify..."
@@ -258,6 +268,14 @@ export default function RoomPage() {
           >
             {submitting ? 'Adding...' : 'Add this song'}
           </button>
+          {me && songs.filter(s => s.player_id === me.id).length > 0 && (
+            <button
+              onClick={markDone}
+              className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold text-lg rounded-2xl"
+            >
+              I&apos;m done adding songs
+            </button>
+          )}
         </div>
       )}
 
@@ -283,11 +301,13 @@ export default function RoomPage() {
           <p className="text-gray-400">Waiting for others...</p>
           <div className="flex flex-col gap-1 mt-2">
             {players.map(p => {
-              const added = songs.some(s => s.player_id === p.id)
+              const count = songs.filter(s => s.player_id === p.id).length
               return (
                 <div key={p.id} className="flex justify-between text-sm">
                   <span className="text-gray-300">{p.name}</span>
-                  <span className={added ? 'text-green-400' : 'text-gray-500'}>{added ? '✓' : '...'}</span>
+                  <span className={p.done ? 'text-green-400' : 'text-gray-500'}>
+                    {p.done ? `✓ Done (${count})` : `${count} added...`}
+                  </span>
                 </div>
               )
             })}
