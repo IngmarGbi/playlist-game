@@ -147,21 +147,13 @@ export default function HostPage() {
           const filtered = prev.filter(x => !(x.song_id === (v as Vote).song_id && x.voter_id === (v as Vote).voter_id))
           return [...filtered, v as Vote]
         }))
-      .on('broadcast', { event: 'player_done' }, () =>
-        fetch(`/api/players?room_id=${id}`).then(r => r.json()).then(data => setPlayers(data)))
+      .on('broadcast', { event: 'player_done' }, ({ payload }: { payload: { player_id: string } }) =>
+        setPlayers(prev => prev.map(p => p.id === payload.player_id ? { ...p, done: true } : p)))
       .subscribe()
 
     return () => { supabase.removeChannel(roomSub) }
   }, [id])
 
-  // Poll players every 3s while in adding phase so done status stays in sync
-  useEffect(() => {
-    if (!id || step !== 'adding') return
-    const poll = setInterval(() => {
-      fetch(`/api/players?room_id=${id}`).then(r => r.json()).then(data => setPlayers(data))
-    }, 3000)
-    return () => clearInterval(poll)
-  }, [id, step])
 
   // Sync step from room status (after host has joined as player)
   useEffect(() => {
@@ -268,7 +260,7 @@ export default function HostPage() {
     })
     setMe(prev => prev ? { ...prev, done: true } : prev)
     setPlayers(prev => prev.map(p => p.id === me.id ? { ...p, done: true } : p))
-    channelRef.current?.send({ type: 'broadcast', event: 'player_done', payload: {} })
+    channelRef.current?.send({ type: 'broadcast', event: 'player_done', payload: { player_id: me.id } })
   }
 
   async function deleteSong(songId: string) {
