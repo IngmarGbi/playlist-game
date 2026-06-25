@@ -152,6 +152,11 @@ export default function RoomPage() {
     setStep('waiting')
   }
 
+  async function deleteSong(songId: string) {
+    await fetch(`/api/songs/${songId}`, { method: 'DELETE' })
+    setSongs(prev => prev.filter(s => s.id !== songId))
+  }
+
   async function castVote(playerIdGuess: string) {
     if (!room || !me || !currentSong || myVote) return
     setMyVote(playerIdGuess)
@@ -241,7 +246,7 @@ export default function RoomPage() {
               <button onClick={() => setSelectedTrack(null)} className="text-gray-400 hover:text-white text-xl">×</button>
             </div>
           )}
-          {searchResults.length > 0 && !selectedTrack && (
+          {searchResults.length > 0 && (
             <div className="flex flex-col gap-2">
               {searchResults.map(t => (
                 <button
@@ -269,12 +274,28 @@ export default function RoomPage() {
             {submitting ? 'Adding...' : 'Add this song'}
           </button>
           {me && songs.filter(s => s.player_id === me.id).length > 0 && (
-            <button
-              onClick={markDone}
-              className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold text-lg rounded-2xl"
-            >
-              I&apos;m done adding songs
-            </button>
+            <div className="flex flex-col gap-2">
+              <h3 className="text-sm text-gray-400 font-semibold">Your songs</h3>
+              {songs.filter(s => s.player_id === me.id).map(s => (
+                <div key={s.id} className="bg-gray-800 rounded-xl p-3 flex gap-3 items-center">
+                  {s.cover_url && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={s.cover_url} alt="cover" className="w-10 h-10 rounded-lg" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate text-sm">{s.title}</div>
+                    <div className="text-xs text-gray-400 truncate">{s.artist}</div>
+                  </div>
+                  <button onClick={() => deleteSong(s.id)} className="text-gray-500 hover:text-red-400 text-xl px-2">×</button>
+                </div>
+              ))}
+              <button
+                onClick={markDone}
+                className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold text-lg rounded-2xl mt-1"
+              >
+                I&apos;m done adding songs
+              </button>
+            </div>
           )}
         </div>
       )}

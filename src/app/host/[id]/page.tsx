@@ -260,6 +260,11 @@ export default function HostPage() {
     setPlayers(prev => prev.map(p => p.id === me.id ? { ...p, done: true } : p))
   }
 
+  async function deleteSong(songId: string) {
+    await fetch(`/api/songs/${songId}`, { method: 'DELETE' })
+    setSongs(prev => prev.filter(s => s.id !== songId))
+  }
+
   async function startPlaying() {
     const shuffled = [...songs].sort(() => Math.random() - 0.5)
     await Promise.all(shuffled.map((s, i) =>
@@ -405,7 +410,7 @@ export default function HostPage() {
                   <button onClick={() => setSelectedTrack(null)} className="text-gray-400 hover:text-white text-xl">×</button>
                 </div>
               )}
-              {searchResults.length > 0 && !selectedTrack && (
+              {searchResults.length > 0 && (
                 <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
                   {searchResults.map((t: SpotifyTrack) => (
                     <button
@@ -444,10 +449,13 @@ export default function HostPage() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={s.cover_url} alt="cover" className="w-10 h-10 rounded-lg" />
                   )}
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="font-medium truncate text-sm">{s.title}</div>
                     <div className="text-xs text-gray-400 truncate">{s.artist}</div>
                   </div>
+                  {!me?.done && (
+                    <button onClick={() => deleteSong(s.id)} className="text-gray-500 hover:text-red-400 text-lg leading-none">×</button>
+                  )}
                 </div>
               ))}
             </div>
