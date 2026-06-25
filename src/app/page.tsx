@@ -11,8 +11,14 @@ export default function Home() {
 
   async function createRoom() {
     setLoading(true)
+    setError('')
     const res = await fetch('/api/rooms', { method: 'POST' })
     const room = await res.json()
+    if (!res.ok || !room.id) {
+      setError('Failed to create room. Check your connection and try again.')
+      setLoading(false)
+      return
+    }
     router.push(`/host/${room.id}`)
   }
 
