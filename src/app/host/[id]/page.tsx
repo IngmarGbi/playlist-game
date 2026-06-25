@@ -33,7 +33,18 @@ export default function HostPage() {
   const [step, setStep] = useState<HostStep>('name')
   const [nameInput, setNameInput] = useState('')
 
+  // Spotify
+  const [spotifyConnected, setSpotifyConnected] = useState<boolean | null>(null)
+  const [spotifyUser, setSpotifyUser] = useState<string | null>(null)
+
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    fetch('/api/spotify/token').then(r => r.json()).then(data => {
+      setSpotifyConnected(data.connected)
+      if (data.connected) setSpotifyUser(data.display_name)
+    })
+  }, [])
 
   useEffect(() => {
     if (!id) return
@@ -223,6 +234,23 @@ export default function HostPage() {
           </div>
         )}
       </div>
+
+      {/* SPOTIFY BANNER */}
+      {spotifyConnected === true && (
+        <div className="bg-green-900 border border-green-600 rounded-2xl px-4 py-3 flex items-center justify-between">
+          <span className="text-green-300 text-sm font-semibold">Spotify connected</span>
+          <span className="text-green-400 text-sm">{spotifyUser}</span>
+        </div>
+      )}
+      {spotifyConnected === false && (
+        <a
+          href={`/api/spotify/auth?roomId=${id}`}
+          className="bg-gray-800 border border-gray-600 rounded-2xl px-4 py-3 flex items-center justify-between hover:bg-gray-700 transition"
+        >
+          <span className="text-gray-300 text-sm">Connect Spotify for audio playback</span>
+          <span className="text-green-400 text-sm font-semibold">Connect →</span>
+        </a>
+      )}
 
       {/* NAME ENTRY */}
       {step === 'name' && (
