@@ -154,6 +154,15 @@ export default function HostPage() {
     return () => { supabase.removeChannel(roomSub) }
   }, [id])
 
+  // Poll players every 3s while in adding phase so done status stays in sync
+  useEffect(() => {
+    if (!id || step !== 'adding') return
+    const poll = setInterval(() => {
+      fetch(`/api/players?room_id=${id}`).then(r => r.json()).then(data => setPlayers(data))
+    }, 3000)
+    return () => clearInterval(poll)
+  }, [id, step])
+
   // Sync step from room status (after host has joined as player)
   useEffect(() => {
     if (!room || !me) return

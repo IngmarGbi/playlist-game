@@ -75,6 +75,16 @@ export default function RoomPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.id])
 
+  // Poll players every 3s while waiting so done status stays in sync
+  useEffect(() => {
+    if (!room || step !== 'waiting') return
+    const poll = setInterval(() => {
+      fetch(`/api/players?room_id=${room.id}`).then(r => r.json()).then(data => setPlayers(data))
+    }, 3000)
+    return () => clearInterval(poll)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room?.id, step])
+
   // Sync step from room status
   useEffect(() => {
     if (!room || !me) return
