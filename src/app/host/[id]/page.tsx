@@ -108,12 +108,11 @@ export default function HostPage() {
     const isYT = song.provider === 'youtube' && !!song.youtube_video_id
     if (isYT) {
       try { ytPlayerRef.current?.loadVideoById(song.youtube_video_id) } catch (_) {}
-      try {
-        const { access_token } = await fetch('/api/spotify/token').then(r => r.json())
-        await fetch('https://api.spotify.com/v1/me/player/pause', {
+      fetch('/api/spotify/token').then(r => r.json()).then(({ access_token }) =>
+        fetch('https://api.spotify.com/v1/me/player/pause', {
           method: 'PUT', headers: { Authorization: `Bearer ${access_token}` },
         })
-      } catch (_) {}
+      ).catch(() => {})
     } else if (deviceId && song.spotify_track_id) {
       try { ytPlayerRef.current?.stopVideo() } catch (_) {}
       async function play() {
