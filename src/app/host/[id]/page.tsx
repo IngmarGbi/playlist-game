@@ -128,13 +128,26 @@ export default function HostPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSongIndex, deviceId, room?.status])
 
-  // Progress bar ticker
+  // Poll Spotify playback state every 2s when in playing step
   useEffect(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current)
-    if (!isPlaying) return
-    intervalRef.current = setInterval(() => setPosition(p => p + 1000), 1000)
+    if (step !== 'playing' || !spotifyConnected) return
+    async function pollState() {
+      const { access_token } = await fetch('/api/spotify/token').then(r => r.json())
+      if (!access_token) return
+      const res = await fetch('https://api.spotify.com/v1/me/player', {
+        headers: { Authorization: `Bearer ${access_token}` },
+      })
+      if (res.status === 204 || !res.ok) return
+      const data = await res.json()
+      setIsPlaying(data.is_playing ?? false)
+      setPosition(data.progress_ms ?? 0)
+      setDuration(data.item?.duration_ms ?? 0)
+    }
+    pollState()
+    intervalRef.current = setInterval(pollState, 2000)
     return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
-  }, [isPlaying])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, spotifyConnected])
 
   useEffect(() => {
     if (!id) return
