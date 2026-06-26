@@ -127,10 +127,11 @@ export default function HostPage() {
   useEffect(() => {
     const song = songs[currentSongIndex]
     if (!song || room?.status !== 'playing') return
-    if (song.provider === 'youtube' && song.youtube_video_id) {
+    const isYT = song.provider === 'youtube' && !!song.youtube_video_id
+    if (isYT) {
       ytPlayerRef.current?.loadVideoById(song.youtube_video_id)
       playerRef.current?.pause()
-    } else if (song.provider !== 'youtube' && deviceId && song.spotify_track_id) {
+    } else if (deviceId && song.spotify_track_id) {
       ytPlayerRef.current?.stopVideo()
       async function play() {
         const { access_token } = await fetch('/api/spotify/token').then(r => r.json())
