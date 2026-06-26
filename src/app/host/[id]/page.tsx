@@ -81,7 +81,7 @@ export default function HostPage() {
       win.onYouTubeIframeAPIReady = () => {
         try {
           ytPlayerRef.current = new win.YT.Player('yt-player', {
-            height: '1', width: '1',
+            height: '200', width: '200',
             playerVars: { autoplay: 1 },
             events: {
               onReady: () => { ytReadyRef.current = true },
@@ -110,7 +110,10 @@ export default function HostPage() {
       const videoId = song.youtube_video_id
       const tryPlay = () => {
         if (ytReadyRef.current && ytPlayerRef.current) {
-          try { ytPlayerRef.current.loadVideoById(videoId) } catch (_) {}
+          try {
+            ytPlayerRef.current.loadVideoById(videoId)
+            setTimeout(() => { try { ytPlayerRef.current?.playVideo() } catch (_) {} }, 300)
+          } catch (_) {}
         } else {
           setTimeout(tryPlay, 500)
         }
@@ -365,7 +368,7 @@ export default function HostPage() {
 
   return (
     <main className="min-h-screen bg-gray-950 text-white flex flex-col p-6 gap-5 max-w-2xl mx-auto">
-      <div id="yt-player" style={{ position: 'fixed', top: '-9999px', left: '-9999px', width: '1px', height: '1px' }} />
+      <div id="yt-player" style={{ position: 'fixed', top: '-9999px', left: '-9999px', width: '200px', height: '200px' }} />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-green-400">Host Screen</h1>
         {room.code && (
