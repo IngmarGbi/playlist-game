@@ -108,11 +108,13 @@ export default function HostPage() {
     const isYT = song.provider === 'youtube' && !!song.youtube_video_id
     if (isYT) {
       try { ytPlayerRef.current?.loadVideoById(song.youtube_video_id) } catch (_) {}
-      fetch('/api/spotify/token').then(r => r.json()).then(({ access_token }) =>
-        fetch('https://api.spotify.com/v1/me/player/pause', {
-          method: 'PUT', headers: { Authorization: `Bearer ${access_token}` },
+      if (spotifyConnected && deviceId) {
+        fetch('/api/spotify/token').then(r => r.json()).then(({ access_token }) => {
+          if (access_token) fetch('https://api.spotify.com/v1/me/player/pause', {
+            method: 'PUT', headers: { Authorization: `Bearer ${access_token}` },
+          }).catch(() => {})
         })
-      ).catch(() => {})
+      }
     } else if (deviceId && song.spotify_track_id) {
       try { ytPlayerRef.current?.stopVideo() } catch (_) {}
       async function play() {
@@ -355,7 +357,7 @@ export default function HostPage() {
 
   return (
     <main className="min-h-screen bg-gray-950 text-white flex flex-col p-6 gap-5 max-w-2xl mx-auto">
-      <div id="yt-player" style={{ display: 'none' }} />
+      <div id="yt-player" style={{ position: 'fixed', top: '-9999px', left: '-9999px', width: '1px', height: '1px' }} />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-green-400">Host Screen</h1>
         {room.code && (
