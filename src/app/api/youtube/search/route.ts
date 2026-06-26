@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   if (!key) return NextResponse.json({ error: 'YouTube API key not configured' }, { status: 500 })
 
   const res = await fetch(
-    `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoCategoryId=10&maxResults=8&q=${encodeURIComponent(q)}&key=${key}`
+    `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&topicId=/m/04rlf&maxResults=8&q=${encodeURIComponent(q)}&key=${key}`
   )
   const data = await res.json()
   if (!res.ok) return NextResponse.json({ error: data }, { status: 500 })
