@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { generateRoomCode } from '@/lib/rooms'
 
-export async function POST() {
+export async function POST(req: NextRequest) {
+  const body = await req.json().catch(() => ({}))
+  const provider = body.provider === 'youtube' ? 'youtube' : 'spotify'
+
   let code = generateRoomCode()
   // Ensure unique code
   while (true) {
@@ -11,7 +14,7 @@ export async function POST() {
     code = generateRoomCode()
   }
 
-  const { data, error } = await supabase.from('rooms').insert({ code }).select().single()
+  const { data, error } = await supabase.from('rooms').insert({ code, provider }).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
 }

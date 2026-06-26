@@ -13,7 +13,11 @@ export default function Home() {
   async function createRoom(provider: 'spotify' | 'youtube') {
     setLoading(true)
     setError('')
-    const res = await fetch('/api/rooms', { method: 'POST' })
+    const res = await fetch('/api/rooms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider }),
+    })
     const room = await res.json()
     if (!res.ok || !room.id) {
       setError('Failed to create room. Check your connection and try again.')

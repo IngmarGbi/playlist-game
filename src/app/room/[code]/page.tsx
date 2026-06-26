@@ -37,7 +37,7 @@ export default function RoomPage() {
   useEffect(() => {
     if (!code) return
     supabase.from('rooms').select('*').eq('code', code.toUpperCase()).single().then(({ data }) => {
-      if (data) setRoom(data)
+      if (data) { setRoom(data); setSearchProvider(data.provider ?? 'spotify') }
     })
   }, [code])
 
@@ -240,10 +240,6 @@ export default function RoomPage() {
             </span>
           </div>
           <p className="text-gray-400 text-sm">Add as many songs as you want — tap &quot;I&apos;m done&quot; when ready!</p>
-          <div className="flex gap-2">
-            <button onClick={() => { setSearchProvider('spotify'); setSearchResults([]); setQuery('') }} className={`flex-1 py-2 rounded-xl text-sm font-semibold ${searchProvider === 'spotify' ? 'bg-green-500 text-black' : 'bg-gray-800 text-gray-400'}`}>Spotify</button>
-            <button onClick={() => { setSearchProvider('youtube'); setSearchResults([]); setQuery('') }} className={`flex-1 py-2 rounded-xl text-sm font-semibold ${searchProvider === 'youtube' ? 'bg-red-500 text-white' : 'bg-gray-800 text-gray-400'}`}>YouTube</button>
-          </div>
           <input
             type="text"
             placeholder={searchProvider === 'youtube' ? 'Search YouTube Music...' : 'Search Spotify...'}

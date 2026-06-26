@@ -6,6 +6,7 @@ export interface Room {
   status: RoomStatus
   current_song_index: number
   songs_per_player: number
+  provider: 'spotify' | 'youtube'
   created_at: string
 }
 

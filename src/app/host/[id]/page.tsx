@@ -28,9 +28,7 @@ export default function HostPage() {
   const [searchResults, setSearchResults] = useState<SpotifyTrack[]>([])
   const [selectedTrack, setSelectedTrack] = useState<SpotifyTrack | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [searchProvider, setSearchProvider] = useState<'spotify' | 'youtube'>(
-    () => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('provider') === 'youtube') ? 'youtube' : 'spotify'
-  )
+  const [searchProvider, setSearchProvider] = useState<'spotify' | 'youtube'>('spotify')
 
   // UI
   const [step, setStep] = useState<HostStep>('name')
@@ -172,7 +170,7 @@ export default function HostPage() {
     if (!id) return
 
     supabase.from('rooms').select('*').eq('id', id).single().then(({ data }) => {
-      if (data) { setRoom(data); setCurrentSongIndex(data.current_song_index) }
+      if (data) { setRoom(data); setCurrentSongIndex(data.current_song_index); setSearchProvider(data.provider ?? 'spotify') }
     })
 
     supabase.from('players').select('*').eq('room_id', id).order('created_at').then(({ data }) => {
@@ -412,12 +410,8 @@ export default function HostPage() {
             onKeyDown={e => e.key === 'Enter' && joinAsPlayer()}
             className="w-full py-4 px-4 bg-gray-800 text-white rounded-2xl outline-none focus:ring-2 focus:ring-green-500 text-lg"
           />
-          <div>
-            <p className="text-sm text-gray-400 mb-2">Default music source for your songs</p>
-            <div className="flex gap-2">
-              <button onClick={() => setSearchProvider('spotify')} className={`flex-1 py-2 rounded-xl text-sm font-semibold ${searchProvider === 'spotify' ? 'bg-green-500 text-black' : 'bg-gray-800 text-gray-400'}`}>Spotify</button>
-              <button onClick={() => setSearchProvider('youtube')} className={`flex-1 py-2 rounded-xl text-sm font-semibold ${searchProvider === 'youtube' ? 'bg-red-500 text-white' : 'bg-gray-800 text-gray-400'}`}>YouTube</button>
-            </div>
+          <div className={`text-center py-2 rounded-xl text-sm font-semibold ${searchProvider === 'youtube' ? 'bg-red-600 text-white' : 'bg-green-500 text-black'}`}>
+            {searchProvider === 'youtube' ? 'YouTube mode' : 'Spotify mode'}
           </div>
           <button
             onClick={joinAsPlayer}
@@ -467,10 +461,6 @@ export default function HostPage() {
 
           {!(me?.done) && (
             <>
-              <div className="flex gap-2">
-                <button onClick={() => { setSearchProvider('spotify'); setSearchResults([]); setQuery('') }} className={`flex-1 py-2 rounded-xl text-sm font-semibold ${searchProvider === 'spotify' ? 'bg-green-500 text-black' : 'bg-gray-800 text-gray-400'}`}>Spotify</button>
-                <button onClick={() => { setSearchProvider('youtube'); setSearchResults([]); setQuery('') }} className={`flex-1 py-2 rounded-xl text-sm font-semibold ${searchProvider === 'youtube' ? 'bg-red-500 text-white' : 'bg-gray-800 text-gray-400'}`}>YouTube</button>
-              </div>
               <input
                 type="text"
                 placeholder={searchProvider === 'youtube' ? 'Search YouTube Music...' : 'Search Spotify...'}
