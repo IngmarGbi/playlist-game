@@ -8,8 +8,9 @@ export default function Home() {
   const [joinCode, setJoinCode] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [hosting, setHosting] = useState(false)
 
-  async function createRoom() {
+  async function createRoom(provider: 'spotify' | 'youtube') {
     setLoading(true)
     setError('')
     const res = await fetch('/api/rooms', { method: 'POST' })
@@ -19,7 +20,11 @@ export default function Home() {
       setLoading(false)
       return
     }
-    router.push(`/host/${room.id}`)
+    if (provider === 'spotify') {
+      window.location.href = `/api/spotify/auth?roomId=${room.id}`
+    } else {
+      router.push(`/host/${room.id}?provider=youtube`)
+    }
   }
 
   async function joinRoom() {
@@ -44,13 +49,36 @@ export default function Home() {
       </div>
 
       <div className="w-full max-w-sm flex flex-col gap-4">
-        <button
-          onClick={createRoom}
-          disabled={loading}
-          className="w-full py-4 bg-green-500 hover:bg-green-400 text-black font-bold text-lg rounded-2xl transition disabled:opacity-50"
-        >
-          Create a room (host)
-        </button>
+        {!hosting ? (
+          <button
+            onClick={() => setHosting(true)}
+            disabled={loading}
+            className="w-full py-4 bg-green-500 hover:bg-green-400 text-black font-bold text-lg rounded-2xl transition disabled:opacity-50"
+          >
+            Create a room (host)
+          </button>
+        ) : (
+          <div className="flex flex-col gap-3 bg-gray-900 rounded-2xl p-5">
+            <p className="font-semibold text-center">Choose your music source</p>
+            <button
+              onClick={() => createRoom('spotify')}
+              disabled={loading}
+              className="w-full py-4 bg-green-500 hover:bg-green-400 text-black font-bold rounded-2xl disabled:opacity-50"
+            >
+              Connect Spotify
+            </button>
+            <button
+              onClick={() => createRoom('youtube')}
+              disabled={loading}
+              className="w-full py-4 bg-red-600 hover:bg-red-500 text-white font-bold rounded-2xl disabled:opacity-50"
+            >
+              Use YouTube
+            </button>
+            <button onClick={() => setHosting(false)} className="text-gray-500 text-sm hover:text-gray-300">
+              Cancel
+            </button>
+          </div>
+        )}
 
         <div className="flex flex-col gap-2">
           <input

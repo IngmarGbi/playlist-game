@@ -9,6 +9,7 @@ type HostStep = 'name' | 'lobby' | 'adding' | 'playing' | 'results'
 
 export default function HostPage() {
   const { id } = useParams<{ id: string }>()
+  const searchParams = useSearchParams()
 
   // Game state
   const [room, setRoom] = useState<Room | null>(null)
@@ -28,7 +29,9 @@ export default function HostPage() {
   const [searchResults, setSearchResults] = useState<SpotifyTrack[]>([])
   const [selectedTrack, setSelectedTrack] = useState<SpotifyTrack | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [searchProvider, setSearchProvider] = useState<'spotify' | 'youtube'>('spotify')
+  const [searchProvider, setSearchProvider] = useState<'spotify' | 'youtube'>(
+    () => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('provider') === 'youtube') ? 'youtube' : 'spotify'
+  )
 
   // UI
   const [step, setStep] = useState<HostStep>('name')
