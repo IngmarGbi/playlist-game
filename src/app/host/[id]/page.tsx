@@ -151,7 +151,7 @@ export default function HostPage() {
 
   // Poll YouTube position every second
   useEffect(() => {
-    if (step !== 'playing' || currentSong?.provider !== 'youtube') return
+    if (step !== 'playing' || songs[currentSongIndex]?.provider !== 'youtube') return
     const poll = setInterval(() => {
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -164,7 +164,7 @@ export default function HostPage() {
     }, 1000)
     return () => clearInterval(poll)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, currentSong?.provider])
+  }, [step, currentSongIndex, songs])
 
   useEffect(() => {
     if (!id) return
