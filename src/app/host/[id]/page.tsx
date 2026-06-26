@@ -103,24 +103,29 @@ export default function HostPage() {
 
   // Load YouTube IFrame API
   useEffect(() => {
-    if (document.getElementById('yt-iframe-api')) return
-    const tag = document.createElement('script')
-    tag.id = 'yt-iframe-api'
-    tag.src = 'https://www.youtube.com/iframe_api'
-    document.body.appendChild(tag)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(window as any).onYouTubeIframeAPIReady = () => {
+    try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ytPlayerRef.current = new (window as any).YT.Player('yt-player', {
-        height: '0', width: '0',
-        playerVars: { autoplay: 1 },
-        events: {
-          onStateChange: (e: { data: number }) => {
-            setIsPlaying(e.data === 1)
-          },
-        },
-      })
-    }
+      const win = window as any
+      win.onYouTubeIframeAPIReady = () => {
+        try {
+          ytPlayerRef.current = new win.YT.Player('yt-player', {
+            height: '0', width: '0',
+            playerVars: { autoplay: 1 },
+            events: {
+              onStateChange: (e: { data: number }) => setIsPlaying(e.data === 1),
+            },
+          })
+        } catch (_) { /* YouTube unavailable */ }
+      }
+      if (!document.getElementById('yt-iframe-api')) {
+        const tag = document.createElement('script')
+        tag.id = 'yt-iframe-api'
+        tag.src = 'https://www.youtube.com/iframe_api'
+        document.body.appendChild(tag)
+      } else if (win.YT?.Player) {
+        win.onYouTubeIframeAPIReady()
+      }
+    } catch (_) { /* YouTube unavailable */ }
   }, [])
 
   // Auto-play when song changes
@@ -129,10 +134,10 @@ export default function HostPage() {
     if (!song || room?.status !== 'playing') return
     const isYT = song.provider === 'youtube' && !!song.youtube_video_id
     if (isYT) {
-      ytPlayerRef.current?.loadVideoById(song.youtube_video_id)
-      playerRef.current?.pause()
+      try { ytPlayerRef.current?.loadVideoById(song.youtube_video_id) } catch (_) {}
+      try { playerRef.current?.pause() } catch (_) {}
     } else if (deviceId && song.spotify_track_id) {
-      ytPlayerRef.current?.stopVideo()
+      try { ytPlayerRef.current?.stopVideo() } catch (_) {}
       async function play() {
         const { access_token } = await fetch('/api/spotify/token').then(r => r.json())
         await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
