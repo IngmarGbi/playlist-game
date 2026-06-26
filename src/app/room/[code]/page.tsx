@@ -345,7 +345,7 @@ export default function RoomPage() {
                 <div key={p.id} className="flex justify-between text-sm">
                   <span className="text-gray-300">{p.name}</span>
                   <span className={p.done ? 'text-green-400' : 'text-gray-500'}>
-                    {p.done ? `✓ Done (${count})` : `${count} added...`}
+                    {p.done ? '✓ Done' : '...'}
                   </span>
                 </div>
               )

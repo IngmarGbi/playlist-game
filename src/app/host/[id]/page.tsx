@@ -540,7 +540,7 @@ export default function HostPage() {
                 <div key={p.id} className="flex items-center justify-between py-1">
                   <span className="text-sm">{p.name}{me && p.id === me.id ? ' (you)' : ''}</span>
                   <span className={p.done ? 'text-green-400 text-sm' : 'text-gray-500 text-sm'}>
-                    {p.done ? `✓ Done (${count})` : `${count} added...`}
+                    {p.done ? '✓ Done' : '...'}
                   </span>
                 </div>
               )
