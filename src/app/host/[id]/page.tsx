@@ -190,8 +190,7 @@ export default function HostPage() {
   useEffect(() => {
     if (!room || !me) return
     if (room.status === 'adding') {
-      const myCount = songs.filter(s => s.player_id === me.id).length
-      setStep(myCount >= (room.songs_per_player ?? 1) ? 'playing' : 'adding')
+      setStep('adding')
     }
     if (room.status === 'playing') {
       supabase.from('songs').select('*').eq('room_id', room.id).order('position').then(({ data }) => {
