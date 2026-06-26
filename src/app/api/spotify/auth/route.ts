@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
     client_id: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID!,
     response_type: 'code',
     redirect_uri: process.env.SPOTIFY_REDIRECT_URI!,
-    scope: 'streaming user-read-email user-read-private user-modify-playback-state',
+    scope: 'streaming user-read-email user-read-private user-modify-playback-state user-read-playback-state',
     state: roomId,
   })
 
