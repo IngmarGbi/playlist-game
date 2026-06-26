@@ -40,14 +40,13 @@ export default function HostPage() {
   const [spotifyConnected, setSpotifyConnected] = useState<boolean | null>(null)
   const [spotifyUser, setSpotifyUser] = useState<string | null>(null)
   const [deviceId, setDeviceId] = useState<string | null>(null)
+  const [devices, setDevices] = useState<{ id: string; name: string; type: string; is_active: boolean }[]>([])
   const [isPlaying, setIsPlaying] = useState(false)
   const [position, setPosition] = useState(0)
   const [duration, setDuration] = useState(0)
 
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const playerRef = useRef<any>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ytPlayerRef = useRef<any>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -59,46 +58,20 @@ export default function HostPage() {
     })
   }, [])
 
-  // Load Spotify Web Playback SDK when connected
+  // Fetch available Spotify devices when connected
   useEffect(() => {
     if (!spotifyConnected) return
-
-    function initPlayer() {
-      fetch('/api/spotify/token').then(r => r.json()).then(({ access_token }) => {
-        if (!access_token) return
-
-        const player = new window.Spotify.Player({
-          name: 'Playlist Game',
-          getOAuthToken: cb => {
-            fetch('/api/spotify/token').then(r => r.json()).then(d => cb(d.access_token))
-          },
-          volume: 0.8,
-        })
-
-        player.addListener('ready', ({ device_id }) => setDeviceId(device_id))
-        player.addListener('player_state_changed', state => {
-          if (!state) return
-          setIsPlaying(!state.paused)
-          setPosition(state.position)
-          setDuration(state.duration)
-        })
-
-        player.connect()
-        playerRef.current = player
+    function loadDevices() {
+      fetch('/api/spotify/devices').then(r => r.json()).then(data => {
+        setDevices(data.devices ?? [])
+        const active = (data.devices ?? []).find((d: { is_active: boolean }) => d.is_active)
+        if (active) setDeviceId(active.id)
+        else if (data.devices?.length) setDeviceId(data.devices[0].id)
       })
     }
-
-    if (window.Spotify) {
-      initPlayer()
-    } else {
-      window.onSpotifyWebPlaybackSDKReady = initPlayer
-      const script = document.createElement('script')
-      script.src = 'https://sdk.scdn.co/spotify-player.js'
-      script.async = true
-      document.body.appendChild(script)
-    }
-
-    return () => { playerRef.current?.disconnect() }
+    loadDevices()
+    const poll = setInterval(loadDevices, 5000)
+    return () => clearInterval(poll)
   }, [spotifyConnected])
 
   // Load YouTube IFrame API
@@ -135,7 +108,12 @@ export default function HostPage() {
     const isYT = song.provider === 'youtube' && !!song.youtube_video_id
     if (isYT) {
       try { ytPlayerRef.current?.loadVideoById(song.youtube_video_id) } catch (_) {}
-      try { playerRef.current?.pause() } catch (_) {}
+      try {
+        const { access_token } = await fetch('/api/spotify/token').then(r => r.json())
+        await fetch('https://api.spotify.com/v1/me/player/pause', {
+          method: 'PUT', headers: { Authorization: `Bearer ${access_token}` },
+        })
+      } catch (_) {}
     } else if (deviceId && song.spotify_track_id) {
       try { ytPlayerRef.current?.stopVideo() } catch (_) {}
       async function play() {
@@ -361,9 +339,24 @@ export default function HostPage() {
 
       {/* SPOTIFY BANNER */}
       {spotifyConnected === true && (
-        <div className="bg-green-900 border border-green-600 rounded-2xl px-4 py-3 flex items-center justify-between">
-          <span className="text-green-300 text-sm font-semibold">Spotify connected</span>
-          <span className="text-green-400 text-sm">{spotifyUser}</span>
+        <div className="bg-green-900 border border-green-600 rounded-2xl px-4 py-3 flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-green-300 text-sm font-semibold">Spotify connected</span>
+            <span className="text-green-400 text-sm">{spotifyUser}</span>
+          </div>
+          {devices.length === 0 ? (
+            <p className="text-yellow-400 text-xs">Open Spotify on your device to enable playback</p>
+          ) : (
+            <select
+              value={deviceId ?? ''}
+              onChange={e => setDeviceId(e.target.value)}
+              className="bg-green-800 text-green-100 text-xs rounded-lg px-2 py-1 outline-none w-full"
+            >
+              {devices.map(d => (
+                <option key={d.id} value={d.id}>{d.name} ({d.type})</option>
+              ))}
+            </select>
+          )}
         </div>
       )}
       {spotifyConnected === false && (
@@ -587,7 +580,13 @@ export default function HostPage() {
               <div className="flex items-center justify-between text-xs text-gray-400">
                 <span>{Math.floor(position / 60000)}:{String(Math.floor((position % 60000) / 1000)).padStart(2, '0')}</span>
                 <button
-                  onClick={() => playerRef.current?.togglePlay()}
+                  onClick={async () => {
+                    const { access_token } = await fetch('/api/spotify/token').then(r => r.json())
+                    await fetch(`https://api.spotify.com/v1/me/player/${isPlaying ? 'pause' : 'play'}`, {
+                      method: 'PUT', headers: { Authorization: `Bearer ${access_token}` },
+                    })
+                    setIsPlaying(p => !p)
+                  }}
                   className="bg-green-500 hover:bg-green-400 text-black font-bold px-6 py-2 rounded-full text-sm"
                 >
                   {isPlaying ? '⏸ Pause' : '▶ Play'}
