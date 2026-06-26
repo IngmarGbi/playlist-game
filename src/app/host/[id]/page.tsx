@@ -47,6 +47,7 @@ export default function HostPage() {
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ytPlayerRef = useRef<any>(null)
+  const ytReadyRef = useRef(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
@@ -80,9 +81,10 @@ export default function HostPage() {
       win.onYouTubeIframeAPIReady = () => {
         try {
           ytPlayerRef.current = new win.YT.Player('yt-player', {
-            height: '0', width: '0',
+            height: '1', width: '1',
             playerVars: { autoplay: 1 },
             events: {
+              onReady: () => { ytReadyRef.current = true },
               onStateChange: (e: { data: number }) => setIsPlaying(e.data === 1),
             },
           })
@@ -105,7 +107,15 @@ export default function HostPage() {
     if (!song || room?.status !== 'playing') return
     const isYT = song.provider === 'youtube' && !!song.youtube_video_id
     if (isYT) {
-      try { ytPlayerRef.current?.loadVideoById(song.youtube_video_id) } catch (_) {}
+      const videoId = song.youtube_video_id
+      const tryPlay = () => {
+        if (ytReadyRef.current && ytPlayerRef.current) {
+          try { ytPlayerRef.current.loadVideoById(videoId) } catch (_) {}
+        } else {
+          setTimeout(tryPlay, 500)
+        }
+      }
+      tryPlay()
       if (spotifyConnected && deviceId) {
         fetch('/api/spotify/token').then(r => r.json()).then(({ access_token }) => {
           if (access_token) fetch('https://api.spotify.com/v1/me/player/pause', {
