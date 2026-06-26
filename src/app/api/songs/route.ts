@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
 export async function POST(req: NextRequest) {
-  const { room_id, player_id, spotify_track_id, title, artist, cover_url } = await req.json()
-  if (!room_id || !player_id || !spotify_track_id) {
+  const { room_id, player_id, spotify_track_id, youtube_video_id, provider, title, artist, cover_url } = await req.json()
+  if (!room_id || !player_id || (!spotify_track_id && !youtube_video_id)) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
 
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
 
   const { data, error } = await supabase
     .from('songs')
-    .insert({ room_id, player_id, spotify_track_id, title, artist, cover_url, position: count ?? 0 })
+    .insert({ room_id, player_id, spotify_track_id: spotify_track_id ?? null, youtube_video_id: youtube_video_id ?? null, provider: provider ?? 'spotify', title, artist, cover_url, position: count ?? 0 })
     .select()
     .single()
 

@@ -22,7 +22,9 @@ export interface Song {
   id: string
   room_id: string
   player_id: string
-  spotify_track_id: string
+  spotify_track_id: string | null
+  youtube_video_id: string | null
+  provider: 'spotify' | 'youtube'
   title: string
   artist: string
   cover_url: string | null
@@ -46,4 +48,5 @@ export interface SpotifyTrack {
   album: { images: { url: string }[] }
   uri: string
   duration_ms: number
+  provider?: 'spotify' | 'youtube'
 }

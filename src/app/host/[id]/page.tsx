@@ -28,6 +28,7 @@ export default function HostPage() {
   const [searchResults, setSearchResults] = useState<SpotifyTrack[]>([])
   const [selectedTrack, setSelectedTrack] = useState<SpotifyTrack | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [searchProvider, setSearchProvider] = useState<'spotify' | 'youtube'>('spotify')
 
   // UI
   const [step, setStep] = useState<HostStep>('name')
@@ -45,6 +46,8 @@ export default function HostPage() {
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const playerRef = useRef<any>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ytPlayerRef = useRef<any>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
@@ -96,19 +99,47 @@ export default function HostPage() {
     return () => { playerRef.current?.disconnect() }
   }, [spotifyConnected])
 
+  // Load YouTube IFrame API
+  useEffect(() => {
+    if (document.getElementById('yt-iframe-api')) return
+    const tag = document.createElement('script')
+    tag.id = 'yt-iframe-api'
+    tag.src = 'https://www.youtube.com/iframe_api'
+    document.body.appendChild(tag)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(window as any).onYouTubeIframeAPIReady = () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ytPlayerRef.current = new (window as any).YT.Player('yt-player', {
+        height: '0', width: '0',
+        playerVars: { autoplay: 1 },
+        events: {
+          onStateChange: (e: { data: number }) => {
+            setIsPlaying(e.data === 1)
+          },
+        },
+      })
+    }
+  }, [])
+
   // Auto-play when song changes
   useEffect(() => {
     const song = songs[currentSongIndex]
-    if (!deviceId || !song || room?.status !== 'playing') return
-    async function play() {
-      const { access_token } = await fetch('/api/spotify/token').then(r => r.json())
-      await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${access_token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uris: [`spotify:track:${song.spotify_track_id}`] }),
-      })
+    if (!song || room?.status !== 'playing') return
+    if (song.provider === 'youtube' && song.youtube_video_id) {
+      ytPlayerRef.current?.loadVideoById(song.youtube_video_id)
+      playerRef.current?.pause()
+    } else if (song.provider !== 'youtube' && deviceId && song.spotify_track_id) {
+      ytPlayerRef.current?.stopVideo()
+      async function play() {
+        const { access_token } = await fetch('/api/spotify/token').then(r => r.json())
+        await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${access_token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uris: [`spotify:track:${song.spotify_track_id}`] }),
+        })
+      }
+      play()
     }
-    play()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSongIndex, deviceId, room?.status])
 
@@ -205,22 +236,26 @@ export default function HostPage() {
     if (searchTimeout.current) clearTimeout(searchTimeout.current)
     if (!q.trim()) { setSearchResults([]); return }
     searchTimeout.current = setTimeout(async () => {
-      const res = await fetch(`/api/spotify/search?q=${encodeURIComponent(q)}`)
+      const endpoint = searchProvider === 'youtube' ? '/api/youtube/search' : '/api/spotify/search'
+      const res = await fetch(`${endpoint}?q=${encodeURIComponent(q)}`)
       const data = await res.json()
-      setSearchResults(data.tracks ?? [])
+      setSearchResults((data.tracks ?? []).map((t: SpotifyTrack) => ({ ...t, provider: searchProvider })))
     }, 400)
   }
 
   async function submitSong() {
     if (!selectedTrack || !room || !me) return
     setSubmitting(true)
+    const isYT = selectedTrack.provider === 'youtube'
     await fetch('/api/songs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         room_id: room.id,
         player_id: me.id,
-        spotify_track_id: selectedTrack.id,
+        provider: selectedTrack.provider ?? 'spotify',
+        spotify_track_id: isYT ? null : selectedTrack.id,
+        youtube_video_id: isYT ? selectedTrack.id : null,
         title: selectedTrack.name,
         artist: selectedTrack.artists.map((a: { name: string }) => a.name).join(', '),
         cover_url: selectedTrack.album.images[0]?.url ?? null,
@@ -306,6 +341,7 @@ export default function HostPage() {
 
   return (
     <main className="min-h-screen bg-gray-950 text-white flex flex-col p-6 gap-5 max-w-2xl mx-auto">
+      <div id="yt-player" style={{ display: 'none' }} />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-green-400">Host Screen</h1>
         {room.code && (
@@ -393,9 +429,13 @@ export default function HostPage() {
 
           {!(me?.done) && (
             <>
+              <div className="flex gap-2">
+                <button onClick={() => { setSearchProvider('spotify'); setSearchResults([]); setQuery('') }} className={`flex-1 py-2 rounded-xl text-sm font-semibold ${searchProvider === 'spotify' ? 'bg-green-500 text-black' : 'bg-gray-800 text-gray-400'}`}>Spotify</button>
+                <button onClick={() => { setSearchProvider('youtube'); setSearchResults([]); setQuery('') }} className={`flex-1 py-2 rounded-xl text-sm font-semibold ${searchProvider === 'youtube' ? 'bg-red-500 text-white' : 'bg-gray-800 text-gray-400'}`}>YouTube</button>
+              </div>
               <input
                 type="text"
-                placeholder="Search Spotify..."
+                placeholder={searchProvider === 'youtube' ? 'Search YouTube Music...' : 'Search Spotify...'}
                 value={query}
                 onChange={e => search(e.target.value)}
                 className="w-full py-3 px-4 bg-gray-800 text-white rounded-2xl outline-none focus:ring-2 focus:ring-green-500"

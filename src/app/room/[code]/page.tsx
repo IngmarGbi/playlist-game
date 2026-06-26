@@ -22,6 +22,7 @@ export default function RoomPage() {
   const [searchResults, setSearchResults] = useState<SpotifyTrack[]>([])
   const [selectedTrack, setSelectedTrack] = useState<SpotifyTrack | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [searchProvider, setSearchProvider] = useState<'spotify' | 'youtube'>('spotify')
   const [mySong, setMySong] = useState<Song | null>(null)
 
   const [currentSong, setCurrentSong] = useState<Song | null>(null)
@@ -120,22 +121,26 @@ export default function RoomPage() {
     if (searchTimeout.current) clearTimeout(searchTimeout.current)
     if (!q.trim()) { setSearchResults([]); return }
     searchTimeout.current = setTimeout(async () => {
-      const res = await fetch(`/api/spotify/search?q=${encodeURIComponent(q)}`)
+      const endpoint = searchProvider === 'youtube' ? '/api/youtube/search' : '/api/spotify/search'
+      const res = await fetch(`${endpoint}?q=${encodeURIComponent(q)}`)
       const data = await res.json()
-      setSearchResults(data.tracks ?? [])
+      setSearchResults((data.tracks ?? []).map((t: SpotifyTrack) => ({ ...t, provider: searchProvider })))
     }, 400)
   }
 
   async function submitSong() {
     if (!selectedTrack || !room || !me) return
     setSubmitting(true)
+    const isYT = selectedTrack.provider === 'youtube'
     await fetch('/api/songs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         room_id: room.id,
         player_id: me.id,
-        spotify_track_id: selectedTrack.id,
+        provider: selectedTrack.provider ?? 'spotify',
+        spotify_track_id: isYT ? null : selectedTrack.id,
+        youtube_video_id: isYT ? selectedTrack.id : null,
         title: selectedTrack.name,
         artist: selectedTrack.artists.map(a => a.name).join(', '),
         cover_url: selectedTrack.album.images[0]?.url ?? null,
@@ -235,9 +240,13 @@ export default function RoomPage() {
             </span>
           </div>
           <p className="text-gray-400 text-sm">Add as many songs as you want — tap &quot;I&apos;m done&quot; when ready!</p>
+          <div className="flex gap-2">
+            <button onClick={() => { setSearchProvider('spotify'); setSearchResults([]); setQuery('') }} className={`flex-1 py-2 rounded-xl text-sm font-semibold ${searchProvider === 'spotify' ? 'bg-green-500 text-black' : 'bg-gray-800 text-gray-400'}`}>Spotify</button>
+            <button onClick={() => { setSearchProvider('youtube'); setSearchResults([]); setQuery('') }} className={`flex-1 py-2 rounded-xl text-sm font-semibold ${searchProvider === 'youtube' ? 'bg-red-500 text-white' : 'bg-gray-800 text-gray-400'}`}>YouTube</button>
+          </div>
           <input
             type="text"
-            placeholder="Search Spotify..."
+            placeholder={searchProvider === 'youtube' ? 'Search YouTube Music...' : 'Search Spotify...'}
             value={query}
             onChange={e => search(e.target.value)}
             className="w-full py-3 px-4 bg-gray-800 text-white rounded-2xl outline-none focus:ring-2 focus:ring-green-500"
