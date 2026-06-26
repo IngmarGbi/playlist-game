@@ -9,7 +9,6 @@ type HostStep = 'name' | 'lobby' | 'adding' | 'playing' | 'results'
 
 export default function HostPage() {
   const { id } = useParams<{ id: string }>()
-  const searchParams = useSearchParams()
 
   // Game state
   const [room, setRoom] = useState<Room | null>(null)
