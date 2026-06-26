@@ -380,6 +380,13 @@ export default function HostPage() {
             onKeyDown={e => e.key === 'Enter' && joinAsPlayer()}
             className="w-full py-4 px-4 bg-gray-800 text-white rounded-2xl outline-none focus:ring-2 focus:ring-green-500 text-lg"
           />
+          <div>
+            <p className="text-sm text-gray-400 mb-2">Default music source for your songs</p>
+            <div className="flex gap-2">
+              <button onClick={() => setSearchProvider('spotify')} className={`flex-1 py-2 rounded-xl text-sm font-semibold ${searchProvider === 'spotify' ? 'bg-green-500 text-black' : 'bg-gray-800 text-gray-400'}`}>Spotify</button>
+              <button onClick={() => setSearchProvider('youtube')} className={`flex-1 py-2 rounded-xl text-sm font-semibold ${searchProvider === 'youtube' ? 'bg-red-500 text-white' : 'bg-gray-800 text-gray-400'}`}>YouTube</button>
+            </div>
+          </div>
           <button
             onClick={joinAsPlayer}
             disabled={!nameInput.trim()}
