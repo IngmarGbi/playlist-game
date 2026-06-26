@@ -595,8 +595,8 @@ export default function HostPage() {
             </div>
           )}
           {spotifyConnected && !deviceId && (
-            <div className="bg-gray-800 rounded-2xl px-4 py-3 text-center text-gray-400 text-sm">
-              Connecting to Spotify player...
+            <div className="bg-yellow-900 border border-yellow-600 rounded-2xl px-4 py-3 text-center text-yellow-300 text-sm">
+              Open the Spotify app on any device, then select it in the banner above
             </div>
           )}
 
