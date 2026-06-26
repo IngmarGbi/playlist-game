@@ -367,7 +367,7 @@ export default function HostPage() {
       </div>
 
       {/* SPOTIFY BANNER */}
-      {spotifyConnected === true && (
+      {room.provider !== 'youtube' && spotifyConnected === true && (
         <div className="bg-green-900 border border-green-600 rounded-2xl px-4 py-3 flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <span className="text-green-300 text-sm font-semibold">Spotify connected</span>
@@ -388,7 +388,7 @@ export default function HostPage() {
           )}
         </div>
       )}
-      {spotifyConnected === false && (
+      {room.provider !== 'youtube' && spotifyConnected === false && (
         <a
           href={`/api/spotify/auth?roomId=${id}`}
           className="bg-gray-800 border border-gray-600 rounded-2xl px-4 py-3 flex items-center justify-between hover:bg-gray-700 transition"
