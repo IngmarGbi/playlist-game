@@ -149,6 +149,23 @@ export default function HostPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, spotifyConnected])
 
+  // Poll YouTube position every second
+  useEffect(() => {
+    if (step !== 'playing' || currentSong?.provider !== 'youtube') return
+    const poll = setInterval(() => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const yt = ytPlayerRef.current as any
+        if (!yt?.getCurrentTime) return
+        setPosition(Math.round(yt.getCurrentTime() * 1000))
+        setDuration(Math.round(yt.getDuration() * 1000))
+        setIsPlaying(yt.getPlayerState() === 1)
+      } catch (_) {}
+    }, 1000)
+    return () => clearInterval(poll)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, currentSong?.provider])
+
   useEffect(() => {
     if (!id) return
 
@@ -581,7 +598,7 @@ export default function HostPage() {
           </div>
 
           {/* Playback controls */}
-          {deviceId && (
+          {(deviceId || currentSong?.provider === 'youtube') && (
             <div className="bg-gray-800 rounded-2xl p-4 flex flex-col gap-3">
               <div className="w-full bg-gray-700 rounded-full h-2">
                 <div
@@ -593,11 +610,16 @@ export default function HostPage() {
                 <span>{Math.floor(position / 60000)}:{String(Math.floor((position % 60000) / 1000)).padStart(2, '0')}</span>
                 <button
                   onClick={async () => {
-                    const { access_token } = await fetch('/api/spotify/token').then(r => r.json())
-                    await fetch(`https://api.spotify.com/v1/me/player/${isPlaying ? 'pause' : 'play'}`, {
-                      method: 'PUT', headers: { Authorization: `Bearer ${access_token}` },
-                    })
-                    setIsPlaying(p => !p)
+                    if (currentSong?.provider === 'youtube') {
+                      if (isPlaying) { ytPlayerRef.current?.pauseVideo(); setIsPlaying(false) }
+                      else { ytPlayerRef.current?.playVideo(); setIsPlaying(true) }
+                    } else {
+                      const { access_token } = await fetch('/api/spotify/token').then(r => r.json())
+                      await fetch(`https://api.spotify.com/v1/me/player/${isPlaying ? 'pause' : 'play'}`, {
+                        method: 'PUT', headers: { Authorization: `Bearer ${access_token}` },
+                      })
+                      setIsPlaying(p => !p)
+                    }
                   }}
                   className="bg-green-500 hover:bg-green-400 text-black font-bold px-6 py-2 rounded-full text-sm"
                 >
